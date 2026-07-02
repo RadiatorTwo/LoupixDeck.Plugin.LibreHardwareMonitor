@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>default</LangVersion>
+    <DebugType>embedded</DebugType>
+
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The plugin talks to LibreHardwareMonitor's built-in HTTP web server (data.json) using
+         only System.Net.Http from the base framework, so it ships no runtime dependencies of its
+         own (like Argus). The host provides the SDK assembly at runtime. -->
+    <PackageReference Include="LoupixDeck.PluginSdk" Version="1.14.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>
