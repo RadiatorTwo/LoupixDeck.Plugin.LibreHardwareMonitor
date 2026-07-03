@@ -2,7 +2,7 @@
   "id": "librehardwaremonitor",
   "name": "LibreHardwareMonitor",
   "version": "1.0.0",
-  "sdkVersion": "1.14",
+  "sdkVersion": "1.15",
   "entryAssembly": "LoupixDeck.Plugin.LibreHardwareMonitor.dll",
   "platform": "Windows",
   "author": "RadiatorTwo",

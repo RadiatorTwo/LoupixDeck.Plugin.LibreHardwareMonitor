@@ -15,7 +15,7 @@
     <!-- The plugin talks to LibreHardwareMonitor's built-in HTTP web server (data.json) using
          only System.Net.Http from the base framework, so it ships no runtime dependencies of its
          own (like Argus). The host provides the SDK assembly at runtime. -->
-    <PackageReference Include="LoupixDeck.PluginSdk" Version="1.14.0">
+    <PackageReference Include="LoupixDeck.PluginSdk" Version="1.15.0">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
   </ItemGroup>

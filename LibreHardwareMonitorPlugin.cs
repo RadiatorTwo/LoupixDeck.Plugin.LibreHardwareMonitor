@@ -15,6 +15,10 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     private const string KeyPassword = "password";
     private const string DefaultUrl = "http://localhost:8085";
 
+    /// <summary>Settings key: when true, buttons are drawn without an opaque background so the page
+    /// wallpaper shows through. Read by the display command at render time.</summary>
+    public const string TransparentBackgroundKey = "background.transparent";
+
     private readonly LibreHardwareMonitorService _service = new();
     private List<IPluginCommand> _commands = [];
     private IPluginHost? _host;
@@ -24,9 +28,9 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         Id = "librehardwaremonitor",
         Name = "LibreHardwareMonitor",
         Version = new Version(1, 0, 0),
-        SdkVersion = new Version(1, 14, 0),
+        SdkVersion = new Version(1, 15, 0),
         Author = "RadiatorTwo",
-        Description = "Display LibreHardwareMonitor sensor readings on touch buttons via its HTTP web server."
+        Description = "Display LibreHardwareMonitor sensor readings on touch buttons; chain several to compose a multi-sensor tile."
     };
 
     public override void Initialize(IPluginHost host)
@@ -120,6 +124,15 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
             Key = KeyPassword, Label = "Password (optional)", Kind = PluginSettingKind.Password,
             DefaultValue = string.Empty,
             Description = "Password for HTTP authentication. Leave empty if authentication is disabled."
+        },
+        new PluginSettingDescriptor
+        {
+            Key = TransparentBackgroundKey,
+            Label = "Transparent background",
+            Kind = PluginSettingKind.Toggle,
+            DefaultValue = false,
+            Description = "Draw buttons without an opaque background so the page wallpaper shows through. " +
+                          "Text is outlined for legibility."
         }
     ];
 
@@ -146,7 +159,13 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
 
     private IReadOnlyList<PluginSettingAction>? _settingsActions;
 
-    public void OnSettingsSaved() => ApplySettings();
+    public void OnSettingsSaved()
+    {
+        ApplySettings();
+        // Repaint bound touch buttons immediately so a transparency toggle is visible at once
+        // (otherwise it would only apply on the command's next 2s poll).
+        _host?.RequestButtonRefresh("LibreHardwareMonitor.Sensor");
+    }
 
     private void ApplySettings()
     {
