@@ -28,7 +28,7 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         Id = "librehardwaremonitor",
         Name = "LibreHardwareMonitor",
         Version = new Version(1, 0, 0),
-        SdkVersion = new Version(1, 15, 0),
+        SdkVersion = new Version(1, 16, 0),
         Author = "RadiatorTwo",
         Description = "Display LibreHardwareMonitor sensor readings on touch buttons; chain several to compose a multi-sensor tile."
     };
@@ -44,6 +44,17 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     public override void Shutdown() => _service.Stop();
 
     public override IEnumerable<IPluginCommand> GetCommands() => _commands;
+
+    public override IReadOnlyList<CommandGroupDescriptor> GetCommandGroups() =>
+    [
+        new CommandGroupDescriptor
+        {
+            Group = "LibreHardwareMonitor",
+            Description = "Hardware sensor readouts",
+            Icon = "\U000F0379",
+            Section = CommandGroupSection.Plugins
+        }
+    ];
 
     // ───────── IMenuContributor — dynamic sensor tree (touch buttons, text) ─────────
 

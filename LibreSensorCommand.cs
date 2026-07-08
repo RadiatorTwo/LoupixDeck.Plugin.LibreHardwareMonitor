@@ -18,6 +18,8 @@ internal sealed class LibreSensorCommand(LibreHardwareMonitorService service) : 
         CommandName = "LibreHardwareMonitor.Sensor",
         DisplayName = "LibreHardwareMonitor Sensor",
         Group = "LibreHardwareMonitor",
+        Icon = "\U000F0379",
+        Description = "Live LibreHardwareMonitor sensor readout on a touch button",
         ParameterTemplate = "({Sensor})",
         Parameters = [new CommandParameter("Sensor", typeof(string))],
         // Surfaced per sensor through the dynamic menu.
