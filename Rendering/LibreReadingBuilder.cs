@@ -23,6 +23,10 @@ internal static class LibreReadingBuilder
         if (sensor is null)
             return Placeholder(Fallback);
 
+        // The menu's name for the sensor; a sensor the menu does not offer keeps its own name.
+        if (TileLabels.For(sensors, key) is { } labels)
+            return new SensorRow(labels.Header, labels.Short, key);
+
         string header = string.IsNullOrWhiteSpace(sensor.Name) ? sensor.Identifier : sensor.Name;
         return new SensorRow(header, ShortHeaderFrom(header), MetricKeys.ForSensor(sensor));
     }
