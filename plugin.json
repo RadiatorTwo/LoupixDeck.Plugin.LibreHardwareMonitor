@@ -6,7 +6,7 @@
   "entryAssembly": "LoupixDeck.Plugin.LibreHardwareMonitor.dll",
   "platform": "Windows",
   "author": "RadiatorTwo",
-  "description": "Display LibreHardwareMonitor sensor readings on touch buttons and Razer side displays via its WMI data provider.",
+  "description": "Display LibreHardwareMonitor sensor readings on touch buttons via its built-in web server.",
   "projectUrl": "",
   "iconFile": ""
 }
