@@ -184,17 +184,31 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
                 try
                 {
                     int count = await _service.ProbeAsync();
-                    return $"Connected — {count} sensor(s)";
+                    return string.Format(Tr("Connected — {0} sensor(s)"), count);
                 }
                 catch (Exception ex)
                 {
-                    return $"Failed: {ex.Message}";
+                    return string.Format(Tr("Failed: {0}"), ex.Message);
                 }
             }
         }
     ];
 
     private IReadOnlyList<PluginSettingAction>? _settingsActions;
+
+    /// <summary>Translates runtime text through the plugin's strings files; hosts before SDK 1.24
+    /// have no <see cref="IPluginHost.Tr"/> and get the English text.</summary>
+    private string Tr(string english)
+    {
+        try
+        {
+            return _host?.Tr(english) ?? english;
+        }
+        catch (MissingMethodException)
+        {
+            return english;
+        }
+    }
 
     public void OnSettingsSaved()
     {
