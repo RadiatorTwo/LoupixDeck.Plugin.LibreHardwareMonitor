@@ -143,40 +143,57 @@ public sealed class LibreHardwareMonitorService : IDisposable
 
         List<LibreSensor> list = new();
         if (root != null)
-            WalkNode(root, hardwareName: string.Empty, list);
+            WalkNode(root, hardwareId: string.Empty, hardwareName: string.Empty, list, new Dictionary<string, int>());
         return list;
     }
 
     /// <summary>
     /// Recursively flattens the data.json tree. A node is a sensor when it carries a
-    /// <c>SensorId</c>; the nearest ancestor node with a <c>HardwareId</c> supplies the hardware name.
+    /// <c>SensorId</c>; the nearest ancestor node with a <c>HardwareId</c> supplies the hardware.
+    /// <paramref name="seen"/> counts identifiers, so a repeated one gets a distinct key.
     /// </summary>
-    private static void WalkNode(DataNode node, string hardwareName, List<LibreSensor> acc)
+    private static void WalkNode(DataNode node, string hardwareId, string hardwareName, List<LibreSensor> acc,
+        Dictionary<string, int> seen)
     {
         string text = node.Text ?? string.Empty;
-        string hardware = node.HardwareId != null ? text : hardwareName;
+        if (node.HardwareId != null)
+        {
+            hardwareId = node.HardwareId;
+            hardwareName = text;
+        }
 
         if (!string.IsNullOrEmpty(node.SensorId))
         {
+            string id = node.SensorId!;
+            int repeat = seen.GetValueOrDefault(id);
+            seen[id] = repeat + 1;
+
+            string valueText = node.Value ?? string.Empty;
+            (double value, string unit) = SensorValue.Parse(valueText);
             acc.Add(new LibreSensor(
-                node.SensorId!,
+                id,
+                repeat == 0 ? id : $"{id}#{repeat}",
                 text,
                 node.Type ?? string.Empty,
-                hardware,
-                node.Value ?? string.Empty));
+                hardwareId,
+                hardwareName,
+                valueText,
+                value,
+                unit));
         }
 
         if (node.Children != null)
         {
             foreach (DataNode child in node.Children)
-                WalkNode(child, hardware, acc);
+                WalkNode(child, hardwareId, hardwareName, acc, seen);
         }
     }
 
     /// <summary>One node of LibreHardwareMonitor's <c>/data.json</c> tree. Only the string fields the
     /// plugin needs are mapped; everything else (Min/Max/RawValue/ImageURL/…) is ignored — those vary
-    /// in type across LHM versions (RawValue may be a number or a unit-formatted string), so we never
-    /// deserialize them.</summary>
+    /// in type across LHM versions (RawValue may be a number or a unit-formatted string, and a raw
+    /// rate is in B/s while Value is in KB/s or MB/s), so the number is always parsed from Value,
+    /// together with the unit it goes with.</summary>
     private sealed class DataNode
     {
         public string? Text { get; set; }
