@@ -101,37 +101,9 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         {
             groupChildren.Add(new MenuNode { Name = "Pages", Children = PageNodes() });
 
-            // Group by hardware device (LHM provides real hardware names), then by sensor type.
-            foreach (var hardwareGroup in sensors
-                         .GroupBy(s => s.HardwareName)
-                         .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
-            {
-                var typeChildren = new List<MenuNode>();
-                foreach (var typeGroup in hardwareGroup
-                             .GroupBy(s => s.SensorType)
-                             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
-                {
-                    var readings = new List<MenuNode>();
-                    foreach (LibreSensor sensor in typeGroup.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        string label = string.IsNullOrWhiteSpace(sensor.Name) ? sensor.Identifier : sensor.Name;
-                        readings.Add(new MenuNode
-                        {
-                            Name = label,
-                            CommandName = LibreSensorCommand.CommandName,
-                            Parameters = new Dictionary<string, string>
-                            {
-                                { "Sensor", LibreSensorRef.Format(sensor) }
-                            }
-                        });
-                    }
-
-                    typeChildren.Add(new MenuNode { Name = typeGroup.Key, Children = readings });
-                }
-
-                string hardwareName = string.IsNullOrWhiteSpace(hardwareGroup.Key) ? "(unknown)" : hardwareGroup.Key;
-                groupChildren.Add(new MenuNode { Name = hardwareName, Children = typeChildren });
-            }
+            // One entry per sensor (one command each), sorted by component, device and quantity.
+            // Combine several on a button via its command sequence to get a multi-row tile.
+            groupChildren.AddRange(SensorMenu.Build(sensors));
         }
 
         IReadOnlyList<MenuNode> result = [new MenuNode { Name = "LibreHardwareMonitor", Children = groupChildren }];
