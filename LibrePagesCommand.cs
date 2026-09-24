@@ -10,10 +10,10 @@ namespace LoupixDeck.Plugin.LibreHardwareMonitor;
 /// <summary>
 /// A paging hardware tile (design Fig. 1): one component per page — CPU, GPU, RAM, NET, DISK and
 /// the all-at-once summary — and a key press moves that button to the next page. The "Pages"
-/// parameter lists pages separated by '|' ("cpu|gpu|sum"); several LibreHardwareMonitor.Pages commands chained on
-/// one button add up to one cycle in sequence order, so each command can carry a single page. Pages
-/// without data (e.g. NET without a network adapter) are skipped, and the header's n/N
-/// counts only the pages shown. The current page is kept per button and resets on a restart.
+/// parameter lists pages separated by '|' ("cpu|gpu|sum"); several LibreHardwareMonitor.Pages
+/// commands chained on one button add up to one cycle in sequence order, so each command can carry
+/// a single page. Pages without data (e.g. NET without a network adapter) are skipped, and the
+/// header's n/N counts only the pages shown. The current page is kept per button and resets on a restart.
 /// </summary>
 internal sealed class LibrePagesCommand(TelemetrySampler telemetry) : IAnimatedDisplayCommand, IDisplayImageCommand
 {
@@ -24,7 +24,7 @@ internal sealed class LibrePagesCommand(TelemetrySampler telemetry) : IAnimatedD
     public CommandDescriptor Descriptor { get; } = new()
     {
         CommandName = CommandName,
-        DisplayName = "LibreHardwareMonitor.Pages",
+        DisplayName = "LibreHardwareMonitor Pages",
         Group = "LibreHardwareMonitor",
         Icon = "\U000F0379",
         Description = "Show hardware pages on a touch button; press it for the next page",
@@ -42,8 +42,8 @@ internal sealed class LibrePagesCommand(TelemetrySampler telemetry) : IAnimatedD
 
     /// <summary>
     /// The host runs every command of a button's chain on a press, so a button with N chained
-    /// LibreHardwareMonitor.Pages commands calls this N times per press; the page advances once per N calls. N is
-    /// learned from the render call, which sees the whole chain.
+    /// LibreHardwareMonitor.Pages commands calls this N times per press; the page advances once per
+    /// N calls. N is learned from the render call, which sees the whole chain.
     /// </summary>
     public Task Execute(CommandContext ctx)
     {
@@ -86,8 +86,8 @@ internal sealed class LibrePagesCommand(TelemetrySampler telemetry) : IAnimatedD
     }
 
     /// <summary>
-    /// The page lists of this button in chain order, and how many LibreHardwareMonitor.Pages commands a press
-    /// executes. A single-command button reports no sequence, so its own parameters are the list.
+    /// The page lists of this button in chain order, and how many LibreHardwareMonitor.Pages commands
+    /// a press executes. A single-command button reports no sequence, so its own parameters are the list.
     /// Without a button key the position is keyed by the first command's own list, which only that
     /// command's Execute advances — so one call per press counts there.
     /// </summary>
