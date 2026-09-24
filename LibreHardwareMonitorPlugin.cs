@@ -38,7 +38,7 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     {
         Id = "librehardwaremonitor",
         Name = "LibreHardwareMonitor",
-        Version = new Version(1, 0, 0),
+        Version = new Version(1, 1, 0),
         SdkVersion = new Version(1, 26, 0),
         Author = "RadiatorTwo",
         Description = "Display LibreHardwareMonitor sensor readings on touch buttons; chain several to compose a multi-sensor tile."
