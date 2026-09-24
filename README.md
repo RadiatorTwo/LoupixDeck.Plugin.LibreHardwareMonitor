@@ -19,10 +19,21 @@ Use **"Test Connection"** to verify the URL and credentials.
 
 ## Features
 
-`LibreHardwareMonitor.Sensor` — a display command that renders a chosen sensor reading onto a
-touch button (updated every 2 s). Sensors are offered as a live tree in the touch-button command
-menu, grouped by hardware device and sensor type. The reading is shown exactly as LibreHardwareMonitor
-formats it (e.g. `45.0 °C`, `1200 RPM`).
+Both commands draw pixel tiles (5×7 bitmap font, no anti-aliasing) with a gauge bar and a
+72-second history chart. Readings turn amber or red past their limits (CPU relative to the
+**CPU TjMax** setting, GPU core, drives, RAM load, a stalled fan while its temperature is high).
+The **Transparent background** setting lets the page wallpaper show through.
+
+- `LibreHardwareMonitor.Sensor` — one sensor per command. Chain up to four on one button for a
+  multi-row tile. Sensors are offered as a live menu sorted by component (CPU, GPU, Memory,
+  Storage, Mainboard, Network, Other), device and quantity. Buttons saved with earlier versions
+  keep their sensor.
+- `LibreHardwareMonitor.Pages` — component pages CPU, GPU, RAM, NET, DISK and a CPU summary; a key
+  press shows the next page. Chain several `Pages` commands to build your own cycle. NET follows
+  the adapter that carried the most data, DISK sums the transfer rates of all drives.
+
+The menu, the settings and the command texts are available in English, German and Spanish.
+Requires LoupixDeck with Plugin SDK 1.26 or later.
 
 ## Build & deploy
 
