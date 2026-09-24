@@ -1,12 +1,16 @@
+using LoupixDeck.Plugin.LibreHardwareMonitor.Rendering.Tiles;
+using LoupixDeck.Plugin.LibreHardwareMonitor.Telemetry;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Plugin.LibreHardwareMonitor;
 
 /// <summary>
 /// Entry point of the LibreHardwareMonitor plugin. Reads a running LibreHardwareMonitor instance
-/// through its built-in HTTP web server (Options → "Run web server", default port 8085) and exposes
-/// one text display command plus a live sensor menu (touch buttons) — mirroring the Argus Monitor
-/// plugin, but sourced from LibreHardwareMonitor's web-server data.
+/// through its built-in HTTP web server (Options → "Run web server", default port 8085), samples it
+/// once a second into histories and alert states, and exposes two pixel-tile display commands
+/// through a live menu: <c>LibreHardwareMonitor.Sensor</c> (one sensor per command; chain several
+/// for a multi-row tile) and <c>LibreHardwareMonitor.Pages</c> (component pages, a key press shows
+/// the next one) — the same tiles as the Argus Monitor plugin.
 /// </summary>
 public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor, IPluginSettingsPage
 {
@@ -19,7 +23,14 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     /// wallpaper shows through. Read by the display command at render time.</summary>
     public const string TransparentBackgroundKey = "background.transparent";
 
+    /// <summary>Settings key: the CPU's maximum junction temperature in °C. CPU warn/critical
+    /// limits are TjMax − 15 / TjMax − 5.</summary>
+    public const string CpuTjMaxKey = "thresholds.cpuTjMax";
+
+    private const long DefaultTjMax = 100;
+
     private readonly LibreHardwareMonitorService _service = new();
+    private TelemetrySampler? _telemetry;
     private List<IPluginCommand> _commands = [];
     private IPluginHost? _host;
 
@@ -36,12 +47,24 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     public override void Initialize(IPluginHost host)
     {
         _host = host;
-        _commands = [new LibreSensorCommand(_service)];
+        _telemetry = new TelemetrySampler(_service, ReadTjMax);
+        _commands = [new LibreSensorCommand(_telemetry), new LibrePagesCommand(_telemetry)];
         ApplySettings();
         _service.Start();
+        _telemetry.Start();
     }
 
-    public override void Shutdown() => _service.Stop();
+    public override void Shutdown()
+    {
+        _telemetry?.Stop();
+        _service.Stop();
+    }
+
+    private double ReadTjMax()
+    {
+        long tjMax = _host?.Settings.Get(CpuTjMaxKey, DefaultTjMax) ?? DefaultTjMax;
+        return Math.Clamp(tjMax, 60, 125);
+    }
 
     public override IEnumerable<IPluginCommand> GetCommands() => _commands;
 
@@ -76,6 +99,8 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         }
         else
         {
+            groupChildren.Add(new MenuNode { Name = "Pages", Children = PageNodes() });
+
             // Group by hardware device (LHM provides real hardware names), then by sensor type.
             foreach (var hardwareGroup in sensors
                          .GroupBy(s => s.HardwareName)
@@ -93,7 +118,7 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
                         readings.Add(new MenuNode
                         {
                             Name = label,
-                            CommandName = "LibreHardwareMonitor.Sensor",
+                            CommandName = LibreSensorCommand.CommandName,
                             Parameters = new Dictionary<string, string>
                             {
                                 { "Sensor", LibreSensorRef.Format(sensor) }
@@ -112,6 +137,25 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         IReadOnlyList<MenuNode> result = [new MenuNode { Name = "LibreHardwareMonitor", Children = groupChildren }];
         return Task.FromResult(result);
     }
+
+    /// <summary>The paging tile (every page, press for the next) and one fixed tile per page.</summary>
+    private static List<MenuNode> PageNodes() =>
+    [
+        PagesNode("All pages (press to cycle)", ComponentPages.DefaultSelection),
+        PagesNode("CPU page", ComponentPages.Cpu.Id),
+        PagesNode("GPU page", ComponentPages.Gpu.Id),
+        PagesNode("RAM page", ComponentPages.Ram.Id),
+        PagesNode("Network page", ComponentPages.Net.Id),
+        PagesNode("Disk page", ComponentPages.Disk.Id),
+        PagesNode("CPU summary", ComponentPages.Summary.Id)
+    ];
+
+    private static MenuNode PagesNode(string name, string pages) => new()
+    {
+        Name = name,
+        CommandName = LibrePagesCommand.CommandName,
+        Parameters = new Dictionary<string, string> { { "Pages", pages } }
+    };
 
     // ───────── IPluginSettingsPage — web-server URL ─────────
 
@@ -143,7 +187,17 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
             Kind = PluginSettingKind.Toggle,
             DefaultValue = false,
             Description = "Draw buttons without an opaque background so the page wallpaper shows through. " +
-                          "Text is outlined for legibility."
+                          "Text gets a 1-pixel shadow for legibility."
+        },
+        new PluginSettingDescriptor
+        {
+            Key = CpuTjMaxKey,
+            Label = "CPU TjMax (°C)",
+            Kind = PluginSettingKind.Number,
+            DefaultValue = DefaultTjMax,
+            Description = "Maximum junction temperature of your CPU, from the vendor's spec sheet " +
+                          "(typically 95 for AMD Ryzen, 100–105 for Intel). CPU temperature turns amber " +
+                          "at TjMax − 15 and red at TjMax − 5."
         }
     ];
 
@@ -173,9 +227,10 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     public void OnSettingsSaved()
     {
         ApplySettings();
-        // Repaint bound touch buttons immediately so a transparency toggle is visible at once
-        // (otherwise it would only apply on the command's next 2s poll).
-        _host?.RequestButtonRefresh("LibreHardwareMonitor.Sensor");
+        // Tiles redraw several times a second and pick up the new settings on their own; this
+        // only covers a host that drives them through the slower poll path.
+        _host?.RequestButtonRefresh(LibreSensorCommand.CommandName);
+        _host?.RequestButtonRefresh(LibrePagesCommand.CommandName);
     }
 
     private void ApplySettings()

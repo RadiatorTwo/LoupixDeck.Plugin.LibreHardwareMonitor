@@ -1,18 +1,18 @@
 namespace LoupixDeck.Plugin.LibreHardwareMonitor;
 
 /// <summary>
-/// A sensor reference is simply LibreHardwareMonitor's stable WMI identifier string
-/// (e.g. <c>/amdcpu/0/temperature/0</c>). Unlike Argus (which encodes <c>Type:Index</c>),
-/// the identifier is already globally unique and stable, so no encoding is needed. This
-/// thin helper keeps the call shape identical to the shared command / side-strip code.
+/// A sensor reference is LibreHardwareMonitor's sensor identifier (e.g. <c>/amdcpu/0/temperature/0</c>),
+/// with <c>#n</c> appended only for the n-th repeat of an identifier LibreHardwareMonitor reports
+/// twice (see <see cref="LibreSensor.Key"/>). References saved before are plain identifiers and keep
+/// resolving to the first reading with that id, as they always did.
 /// </summary>
 internal static class LibreSensorRef
 {
-    public static string Format(LibreSensor sensor) => sensor.Identifier;
+    public static string Format(LibreSensor sensor) => sensor.Key;
 
-    public static bool TryParse(string? raw, out string identifier)
+    public static bool TryParse(string? raw, out string key)
     {
-        identifier = raw?.Trim() ?? string.Empty;
-        return !string.IsNullOrEmpty(identifier);
+        key = raw?.Trim() ?? string.Empty;
+        return !string.IsNullOrEmpty(key);
     }
 }
