@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Plugin icon, read from the assembly so it does not depend on the install layout. -->
+    <EmbeddedResource Include="icon.png" LogicalName="LoupixDeck.Plugin.LibreHardwareMonitor.icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The plugin talks to LibreHardwareMonitor's built-in HTTP web server (data.json) using
          only System.Net.Http from the base framework, so it ships no runtime dependencies of its
          own (like Argus). The host provides the SDK assembly at runtime. -->
