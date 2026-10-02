@@ -41,8 +41,20 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         Version = new Version(1, 1, 0),
         SdkVersion = new Version(1, 26, 0),
         Author = "RadiatorTwo",
-        Description = "Display LibreHardwareMonitor sensor readings on touch buttons; chain several to compose a multi-sensor tile."
+        Description = "Display LibreHardwareMonitor sensor readings on touch buttons; chain several to compose a multi-sensor tile.",
+        Icon = LoadIcon()
     };
+
+    /// <summary>The plugin icon (icon.png, embedded). Missing data only costs the icon.</summary>
+    private static byte[]? LoadIcon()
+    {
+        using Stream? stream = typeof(LibreHardwareMonitorPlugin).Assembly.GetManifestResourceStream("LoupixDeck.Plugin.LibreHardwareMonitor.icon.png");
+        if (stream == null) return null;
+
+        using MemoryStream buffer = new();
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
+    }
 
     public override void Initialize(IPluginHost host)
     {
