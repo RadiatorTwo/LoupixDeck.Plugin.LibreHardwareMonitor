@@ -78,5 +78,9 @@
   "Reading failed ({0}: {1}).": "Lesen fehlgeschlagen ({0}: {1}).",
   "Last error: {0}": "Letzter Fehler: {0}",
   "LibreHardwareMonitor web server": "LibreHardwareMonitor-Webserver",
-  "Run LibreHardwareMonitor and turn on Options → 'Run web server'; the plugin's web server URL must match its port.": "LibreHardwareMonitor starten und Options → „Run web server“ einschalten; die Webserver-URL des Plugins muss zu dessen Port passen."
+  "Run LibreHardwareMonitor and turn on Options → 'Run web server'; the plugin's web server URL must match its port.": "LibreHardwareMonitor starten und Options → „Run web server“ einschalten; die Webserver-URL des Plugins muss zu dessen Port passen.",
+
+  "Power page": "Leistungs-Seite",
+  "VRAM page": "VRAM-Seite",
+  "Battery page": "Akku-Seite"
 }
