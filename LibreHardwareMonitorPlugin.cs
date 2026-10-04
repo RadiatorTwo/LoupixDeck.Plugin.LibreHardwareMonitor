@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using LoupixDeck.Plugin.LibreHardwareMonitor.Rendering.Tiles;
 using LoupixDeck.Plugin.LibreHardwareMonitor.Telemetry;
 using LoupixDeck.PluginSdk;
@@ -214,13 +215,18 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     {
         try
         {
-            return _host?.Tr(english) ?? english;
+            return _host is null ? english : HostTr(_host, english);
         }
         catch (MissingMethodException)
         {
             return english;
         }
     }
+
+    // Kept out of line: the JIT resolves IPluginHost.Tr when it compiles this method, which throws
+    // on a host without it — inside Tr's try block rather than in its caller.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string HostTr(IPluginHost host, string english) => host.Tr(english);
 
     public void OnSettingsSaved()
     {
