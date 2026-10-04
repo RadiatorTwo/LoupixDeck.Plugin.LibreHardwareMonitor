@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using LoupixDeck.Plugin.LibreHardwareMonitor.Rendering;
 using LoupixDeck.Plugin.LibreHardwareMonitor.Rendering.Pixel;
 using LoupixDeck.Plugin.LibreHardwareMonitor.Rendering.Tiles;
@@ -17,6 +18,9 @@ namespace LoupixDeck.Plugin.LibreHardwareMonitor;
 internal sealed class LibreSensorCommand(TelemetrySampler telemetry) : IAnimatedDisplayCommand, IDisplayImageCommand
 {
     public const string CommandName = "LibreHardwareMonitor.Sensor";
+
+    // Sensor reference → its row for the snapshot it was built from.
+    private readonly ConcurrentDictionary<string, RowOfSnapshot> _rows = new(StringComparer.Ordinal);
 
     public CommandDescriptor Descriptor { get; } = new()
     {
@@ -53,13 +57,31 @@ internal sealed class LibreSensorCommand(TelemetrySampler telemetry) : IAnimated
     {
         TelemetryFrame frame = telemetry.Frame;
 
-        List<SensorRow> rows = SensorReferences(ctx)
-            .Take(SensorTileLayout.MaxRows)
-            .Select(sensorRef => LibreReadingBuilder.Build(sensorRef, frame.Sensors))
-            .ToList();
+        List<SensorRow> rows = new(SensorTileLayout.MaxRows);
+        foreach (string? sensorRef in SensorReferences(ctx))
+        {
+            rows.Add(Row(sensorRef, frame.Sensors));
+            if (rows.Count == SensorTileLayout.MaxRows)
+                break;
+        }
 
         SensorTileLayout.Draw(surface, rows, frame, blinkOn);
     }
+
+    /// <summary>The row of one sensor reference. It depends only on the reference and the sensor
+    /// snapshot, so it is built once per snapshot instead of on every frame.</summary>
+    private SensorRow Row(string? reference, IReadOnlyList<LibreSensor> sensors)
+    {
+        string key = reference ?? string.Empty;
+        if (_rows.TryGetValue(key, out RowOfSnapshot? cached) && ReferenceEquals(cached.Sensors, sensors))
+            return cached.Row;
+
+        SensorRow row = LibreReadingBuilder.Build(reference, sensors);
+        _rows[key] = new RowOfSnapshot(sensors, row);
+        return row;
+    }
+
+    private sealed record RowOfSnapshot(IReadOnlyList<LibreSensor> Sensors, SensorRow Row);
 
     /// <summary>
     /// The sensor references to render, in order. On a multi-command button the whole sequence is
