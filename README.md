@@ -27,11 +27,6 @@ Both commands draw pixel tiles (5×7 bitmap font, no anti-aliasing) with a gauge
 **CPU TjMax** setting, GPU core, drives, RAM load, a stalled fan while its temperature is high).
 The **Transparent background** setting lets the page wallpaper show through.
 
-Settings: transparent background, the CPU's TjMax (CPU temperature turns amber at
-TjMax − 15 °C and red at TjMax − 5 °C), temperatures in °F instead of °C (display only), and
-the alert limits: GPU 80/88 °C, drives 55/65 °C, RAM load 85/95 % (warning/critical) and a
-stalled fan below 200 RPM by default.
-
 - `LibreHardwareMonitor.Sensor` — one sensor per command. Chain up to four on one button for a
   multi-row tile. Sensors are offered as a live menu sorted by component (CPU, GPU, Memory,
   Storage, Mainboard, Network, Other), device and quantity. Buttons saved with earlier versions
@@ -43,8 +38,21 @@ stalled fan below 200 RPM by default.
   sums the transfer rates of all drives. PWR shows CPU package power, GPU power and their sum; VRAM
   the primary GPU's memory in use; BAT the battery charge level (laptops).
 
+Settings: transparent background, the CPU's TjMax (CPU temperature turns amber at
+TjMax − 15 °C and red at TjMax − 5 °C), temperatures in °F instead of °C (display only), and
+the alert limits: GPU 80/88 °C, drives 55/65 °C, RAM load 85/95 % (warning/critical) and a
+stalled fan below 200 RPM by default.
+
 The menu, the settings and the command texts are available in English, German and Spanish.
 Requires LoupixDeck with Plugin SDK 1.28 or later.
+
+## Troubleshooting
+
+"Test Connection" in the plugin settings says why the web server cannot be read and shows the last
+error. For a log, start LoupixDeck with the environment variable
+`LOUPIXDECK_DEBUG_LIBREHARDWAREMONITOR=1`: error events then go to the host log (in release builds
+`%USERPROFILE%\.config\LoupixDeck\loupixdeck-startup.log`). Without it the plugin writes nothing
+there.
 
 ## Build & deploy
 
