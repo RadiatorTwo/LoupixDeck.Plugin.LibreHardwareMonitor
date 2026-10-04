@@ -61,11 +61,14 @@ public sealed class LibreHardwareMonitorService : IDisposable
 
     private void SetStatus(string format, params object[] args) => _status = new LibreDiagnostics(format, args);
 
+    /// <summary>Receives a line per error event; the plugin decides whether it reaches a log.</summary>
+    public Action<string>? Log { get; set; }
+
     private void SetError(string format, params object[] args)
     {
         LibreDiagnostics error = new(format, args);
         _lastError = error;
-        Console.WriteLine($"LibreHardwareMonitorService: {error.Text}");
+        Log?.Invoke($"LibreHardwareMonitorService: {error.Text}");
     }
 
     /// <summary>
