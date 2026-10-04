@@ -194,15 +194,14 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
             Invoke = async () =>
             {
                 ApplySettings();
-                try
-                {
-                    int count = await _service.ProbeAsync();
-                    return string.Format(Tr("Connected — {0} sensor(s)"), count);
-                }
-                catch (Exception ex)
-                {
-                    return string.Format(Tr("Failed: {0}"), ex.Message);
-                }
+                await _service.ProbeAsync();
+
+                // The reason it failed, or what it reads now, and the last problem the poll loop or
+                // this test ran into.
+                string text = Tr(_service.Status);
+                if (_service.LastError is { } error)
+                    text += "\n" + string.Format(Tr("Last error: {0}"), Tr(error));
+                return text;
             }
         }
     ];
@@ -222,6 +221,8 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
             return english;
         }
     }
+
+    private string Tr(LibreDiagnostics diagnostics) => string.Format(Tr(diagnostics.Format), diagnostics.Args);
 
     // Kept out of line: the JIT resolves IPluginHost.Tr when it compiles this method, which throws
     // on a host without it — inside Tr's try block rather than in its caller.

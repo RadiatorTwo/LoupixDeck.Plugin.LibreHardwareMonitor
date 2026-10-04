@@ -15,7 +15,9 @@ edit the plugin setting **"Web server URL"** accordingly.
 
 If the web server's HTTP authentication is enabled, fill in the optional **Username** / **Password**
 plugin settings — the plugin then sends HTTP Basic auth. Leave both empty when authentication is off.
-Use **"Test Connection"** to verify the URL and credentials.
+Use **"Test Connection"** to verify the URL and credentials. When the web server cannot be read it
+says why (not reachable, no answer, login required or rejected, an invalid URL or one that does not
+point to LibreHardwareMonitor, no sensors) and shows the last error.
 
 ## Features
 
