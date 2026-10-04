@@ -32,8 +32,9 @@ The **Transparent background** setting lets the page wallpaper show through.
   Storage, Mainboard, Network, Other), device and quantity. Buttons saved with earlier versions
   keep their sensor.
 - `LibreHardwareMonitor.Pages` — component pages CPU, GPU, RAM, NET, DISK, PWR, VRAM, BAT and a
-  CPU summary; a key press shows the next page. Chain several `Pages` commands to build your own
-  cycle. Pages without data are skipped. NET follows the adapter that carried the most data, DISK
+  CPU summary; a key press shows the next page. The menu's "All pages" entry cycles through every
+  page, including pages added later. Chain several `Pages` commands to build your own cycle. Pages
+  without data are skipped. NET follows the adapter that carried the most data, DISK
   sums the transfer rates of all drives. PWR shows CPU package power, GPU power and their sum; VRAM
   the primary GPU's memory in use; BAT the battery charge level (laptops).
 
