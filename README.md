@@ -6,7 +6,8 @@ built against [LoupixDeck.PluginSdk](https://github.com/RadiatorTwo/LoupixDeck.P
 Reads a running [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
 instance through its built-in **HTTP web server** (current LibreHardwareMonitor no longer publishes
 WMI). When the web server isn't reachable, the plugin shows "not reachable" and recovers
-automatically once it's enabled.
+automatically once it's enabled. It also reports this as an unmet requirement: the LoupixDeck
+Plugins page marks it "Needs attention" with the same reason "Test Connection" gives.
 
 ## Setup in LibreHardwareMonitor
 

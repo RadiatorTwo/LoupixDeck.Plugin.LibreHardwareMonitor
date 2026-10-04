@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -45,6 +46,9 @@ public sealed class LibreHardwareMonitorService : IDisposable
     private volatile LibreDiagnostics _status = new(NotStarted, []);
     private volatile LibreDiagnostics? _lastError;
 
+    // Set once a fetch attempt has finished, so the status describes a real outcome.
+    private volatile bool _attempted;
+
     public IReadOnlyList<LibreSensor> Sensors => _sensors;
     public bool IsAvailable => _isAvailable;
 
@@ -86,6 +90,50 @@ public sealed class LibreHardwareMonitorService : IDisposable
     /// Records the outcome in <see cref="Status"/> and <see cref="LastError"/>; true on success.</summary>
     public Task<bool> ProbeAsync() => AttemptAsync(CancellationToken.None);
 
+    /// <summary>
+    /// Why the web server cannot be read right now (an English key of the strings files), or null
+    /// when it can. Never waits: it answers from the latest attempt. Right after <see cref="Start"/>
+    /// no attempt has finished yet (a refused connection to localhost takes about 4 s on Windows);
+    /// then an invalid URL and a local URL whose port nobody listens on are reported at once, and
+    /// anything else counts as no problem rather than a false one.
+    /// </summary>
+    public string? CurrentProblem()
+    {
+        if (!_attempted)
+        {
+            return _dataUrl switch
+            {
+                null => BadUrl,
+                { IsLoopback: true } url when !IsListening(url.Port) => NotReachable,
+                _ => null
+            };
+        }
+
+        if (_isAvailable)
+            return _sensors.Count > 0 ? null : NoSensors;
+
+        return _status.Format;
+    }
+
+    private static bool IsListening(int port)
+    {
+        try
+        {
+            foreach (IPEndPoint endPoint in IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners())
+            {
+                if (endPoint.Port == port)
+                    return true;
+            }
+
+            return false;
+        }
+        catch (Exception)
+        {
+            // Cannot tell; let the request decide.
+            return true;
+        }
+    }
+
     public void Start()
     {
         if (_pollTask != null)
@@ -107,6 +155,7 @@ public sealed class LibreHardwareMonitorService : IDisposable
         _isAvailable = false;
         _sensors = Array.Empty<LibreSensor>();
         SetStatus(NotStarted);
+        _attempted = false;
     }
 
     public void Dispose()
@@ -150,6 +199,7 @@ public sealed class LibreHardwareMonitorService : IDisposable
                 SetStatus("Connected — {0} sensor(s)", sensors.Count);
             else
                 SetStatus(NoSensors);
+            _attempted = true;
             return true;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -162,6 +212,7 @@ public sealed class LibreHardwareMonitorService : IDisposable
             Fail(ex);
             _isAvailable = false;
             _sensors = Array.Empty<LibreSensor>();
+            _attempted = true;
             return false;
         }
     }

@@ -13,7 +13,8 @@ namespace LoupixDeck.Plugin.LibreHardwareMonitor;
 /// for a multi-row tile) and <c>LibreHardwareMonitor.Pages</c> (component pages, a key press shows
 /// the next one) — the same tiles as the Argus Monitor plugin.
 /// </summary>
-public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor, IPluginSettingsPage
+public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor, IPluginSettingsPage,
+    IPluginRequirements
 {
     private const string KeyUrl = "url";
     private const string KeyUsername = "username";
@@ -71,6 +72,32 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     {
         _telemetry?.Stop();
         _service.Stop();
+    }
+
+    // ───────── IPluginRequirements ─────────
+
+    /// <summary>
+    /// One requirement: LibreHardwareMonitor's web server answering with sensor data. The host asks
+    /// right after loading, before the poll loop may have finished its first request; the answer
+    /// never waits for it, and an undecided service reports no false "not met" (see
+    /// <see cref="LibreHardwareMonitorService.CurrentProblem"/>). Texts are English keys the host
+    /// translates through the plugin's strings files.
+    /// </summary>
+    public IReadOnlyList<PluginRequirement> GetRequirements()
+    {
+        string? problem = _service.CurrentProblem();
+        return
+        [
+            new PluginRequirement
+            {
+                Id = "librehardwaremonitor-web-server",
+                Name = "LibreHardwareMonitor web server",
+                IsMet = problem is null,
+                Message = problem,
+                InstallHint = "Run LibreHardwareMonitor and turn on Options → 'Run web server'; " +
+                              "the plugin's web server URL must match its port."
+            }
+        ];
     }
 
     private double ReadTjMax()
