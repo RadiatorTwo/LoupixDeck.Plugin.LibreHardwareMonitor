@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using LoupixDeck.Plugin.LibreHardwareMonitor.Rendering.Tiles;
 using LoupixDeck.Plugin.LibreHardwareMonitor.Telemetry;
 using LoupixDeck.PluginSdk;
@@ -12,7 +13,8 @@ namespace LoupixDeck.Plugin.LibreHardwareMonitor;
 /// for a multi-row tile) and <c>LibreHardwareMonitor.Pages</c> (component pages, a key press shows
 /// the next one) — the same tiles as the Argus Monitor plugin.
 /// </summary>
-public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor, IPluginSettingsPage
+public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor, IPluginSettingsPage,
+    IPluginRequirements
 {
     private const string KeyUrl = "url";
     private const string KeyUsername = "username";
@@ -27,7 +29,25 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     /// limits are TjMax − 15 / TjMax − 5.</summary>
     public const string CpuTjMaxKey = "thresholds.cpuTjMax";
 
+    /// <summary>Settings key: when true, temperatures are shown in °F. Limits stay in °C.</summary>
+    public const string FahrenheitKey = "display.fahrenheit";
+
+    // Settings keys of the alert limits. Absent from older settings files, so each falls back to
+    // the value that was hardcoded before (TelemetrySettings.Default).
+    private const string GpuWarnKey = "thresholds.gpuWarn";
+    private const string GpuCriticalKey = "thresholds.gpuCritical";
+    private const string StorageWarnKey = "thresholds.storageWarn";
+    private const string StorageCriticalKey = "thresholds.storageCritical";
+    private const string RamWarnKey = "thresholds.ramWarn";
+    private const string RamCriticalKey = "thresholds.ramCritical";
+    private const string FanStallKey = "thresholds.fanStallRpm";
+
     private const long DefaultTjMax = 100;
+
+    // Release builds of the host send all console output, plugin log lines included, into
+    // loupixdeck-startup.log. Like the host's LOUPIXDECK_DEBUG_* switches, logging is opt-in.
+    private static readonly bool DebugLogging =
+        Environment.GetEnvironmentVariable("LOUPIXDECK_DEBUG_LIBREHARDWAREMONITOR") == "1";
 
     private readonly LibreHardwareMonitorService _service = new();
     private TelemetrySampler? _telemetry;
@@ -39,7 +59,7 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         Id = "librehardwaremonitor",
         Name = "LibreHardwareMonitor",
         Version = new Version(1, 1, 0),
-        SdkVersion = new Version(1, 26, 0),
+        SdkVersion = new Version(1, 28, 0),
         Author = "RadiatorTwo",
         Description = "Display LibreHardwareMonitor sensor readings on touch buttons; chain several to compose a multi-sensor tile.",
         Icon = LoadIcon()
@@ -59,7 +79,8 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     public override void Initialize(IPluginHost host)
     {
         _host = host;
-        _telemetry = new TelemetrySampler(_service, ReadTjMax);
+        _service.Log = DebugLog;
+        _telemetry = new TelemetrySampler(_service, ReadSettings, DebugLog);
         _commands = [new LibreSensorCommand(_telemetry), new LibrePagesCommand(_telemetry)];
         ApplySettings();
         _service.Start();
@@ -72,11 +93,67 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         _service.Stop();
     }
 
-    private double ReadTjMax()
+    // ───────── IPluginRequirements ─────────
+
+    /// <summary>
+    /// One requirement: LibreHardwareMonitor's web server answering with sensor data. The host asks
+    /// right after loading, before the poll loop may have finished its first request; the answer
+    /// never waits for it, and an undecided service reports no false "not met" (see
+    /// <see cref="LibreHardwareMonitorService.CurrentProblem"/>). Texts are English keys the host
+    /// translates through the plugin's strings files.
+    /// </summary>
+    public IReadOnlyList<PluginRequirement> GetRequirements()
     {
-        long tjMax = _host?.Settings.Get(CpuTjMaxKey, DefaultTjMax) ?? DefaultTjMax;
-        return Math.Clamp(tjMax, 60, 125);
+        string? problem = _service.CurrentProblem();
+        return
+        [
+            new PluginRequirement
+            {
+                Id = "librehardwaremonitor-web-server",
+                Name = "LibreHardwareMonitor web server",
+                IsMet = problem is null,
+                Message = problem,
+                InstallHint = "Run LibreHardwareMonitor and turn on Options → 'Run web server'; " +
+                              "the plugin's web server URL must match its port."
+            }
+        ];
     }
+
+    /// <summary>Writes to the host log, only with LOUPIXDECK_DEBUG_LIBREHARDWAREMONITOR=1. Errors
+    /// stay visible without it through Test Connection.</summary>
+    private void DebugLog(string message)
+    {
+        if (DebugLogging)
+            _host?.Logger.Warn(message);
+    }
+
+    private TelemetrySettings ReadSettings()
+    {
+        TelemetrySettings d = TelemetrySettings.Default;
+        (double gpuWarn, double gpuCritical) = ReadLimits(GpuWarnKey, d.GpuWarn, GpuCriticalKey, d.GpuCritical, 150);
+        (double storageWarn, double storageCritical) =
+            ReadLimits(StorageWarnKey, d.StorageWarn, StorageCriticalKey, d.StorageCritical, 150);
+        (double ramWarn, double ramCritical) = ReadLimits(RamWarnKey, d.RamWarn, RamCriticalKey, d.RamCritical, 100);
+
+        return new TelemetrySettings(
+            Math.Clamp(ReadNumber(CpuTjMaxKey, d.TjMax), 60, 125),
+            gpuWarn, gpuCritical, storageWarn, storageCritical, ramWarn, ramCritical,
+            Math.Clamp(ReadNumber(FanStallKey, d.StalledFanRpm), 0, 10000),
+            _host?.Settings.Get(FahrenheitKey, false) ?? false);
+    }
+
+    /// <summary>A warn/critical pair in 0..<paramref name="max"/>; a warn limit above the critical
+    /// one is lowered to it, so the critical state stays reachable.</summary>
+    private (double Warn, double Critical) ReadLimits(string warnKey, double warnDefault, string criticalKey,
+        double criticalDefault, double max)
+    {
+        double critical = Math.Clamp(ReadNumber(criticalKey, criticalDefault), 0, max);
+        double warn = Math.Clamp(ReadNumber(warnKey, warnDefault), 0, max);
+        return (Math.Min(warn, critical), critical);
+    }
+
+    private double ReadNumber(string key, double defaultValue) =>
+        _host?.Settings.Get(key, (long)defaultValue) ?? defaultValue;
 
     public override IEnumerable<IPluginCommand> GetCommands() => _commands;
 
@@ -125,13 +202,16 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     /// <summary>The paging tile (every page, press for the next) and one fixed tile per page.</summary>
     private static List<MenuNode> PageNodes() =>
     [
-        PagesNode("All pages (press to cycle)", ComponentPages.DefaultSelection),
+        PagesNode("All pages (press to cycle)", ComponentPages.AllSelection),
         PagesNode("CPU page", ComponentPages.Cpu.Id),
         PagesNode("GPU page", ComponentPages.Gpu.Id),
         PagesNode("RAM page", ComponentPages.Ram.Id),
         PagesNode("Network page", ComponentPages.Net.Id),
         PagesNode("Disk page", ComponentPages.Disk.Id),
-        PagesNode("CPU summary", ComponentPages.Summary.Id)
+        PagesNode("CPU summary", ComponentPages.Summary.Id),
+        PagesNode("Power page", ComponentPages.Power.Id),
+        PagesNode("VRAM page", ComponentPages.Vram.Id),
+        PagesNode("Battery page", ComponentPages.Battery.Id)
     ];
 
     private static MenuNode PagesNode(string name, string pages) => new()
@@ -182,8 +262,46 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
             Description = "Maximum junction temperature of your CPU, from the vendor's spec sheet " +
                           "(typically 95 for AMD Ryzen, 100–105 for Intel). CPU temperature turns amber " +
                           "at TjMax − 15 and red at TjMax − 5."
+        },
+        new PluginSettingDescriptor
+        {
+            Key = FahrenheitKey,
+            Label = "Show temperatures in °F",
+            Kind = PluginSettingKind.Toggle,
+            DefaultValue = false,
+            Description = "Show temperatures in degrees Fahrenheit. The alert limits below stay in °C."
+        },
+        new PluginSettingDescriptor
+        {
+            Key = "thresholds.heading",
+            Label = "Alert limits",
+            Kind = PluginSettingKind.Heading,
+            Description = "A reading turns amber at its warning limit and red at its critical limit."
+        },
+        LimitSetting(GpuWarnKey, "GPU warning (°C)", TelemetrySettings.Default.GpuWarn),
+        LimitSetting(GpuCriticalKey, "GPU critical (°C)", TelemetrySettings.Default.GpuCritical),
+        LimitSetting(StorageWarnKey, "Drive warning (°C)", TelemetrySettings.Default.StorageWarn),
+        LimitSetting(StorageCriticalKey, "Drive critical (°C)", TelemetrySettings.Default.StorageCritical),
+        LimitSetting(RamWarnKey, "RAM load warning (%)", TelemetrySettings.Default.RamWarn),
+        LimitSetting(RamCriticalKey, "RAM load critical (%)", TelemetrySettings.Default.RamCritical),
+        new PluginSettingDescriptor
+        {
+            Key = FanStallKey,
+            Label = "Fan stalled below (RPM)",
+            Kind = PluginSettingKind.Number,
+            DefaultValue = (long)TelemetrySettings.Default.StalledFanRpm,
+            Description = "A CPU or GPU fan slower than this turns red while the temperature it cools is " +
+                          "at its warning or critical limit."
         }
     ];
+
+    private static PluginSettingDescriptor LimitSetting(string key, string label, double defaultValue) => new()
+    {
+        Key = key,
+        Label = label,
+        Kind = PluginSettingKind.Number,
+        DefaultValue = (long)defaultValue
+    };
 
     public IReadOnlyList<PluginSettingAction> SettingsActions => _settingsActions ??=
     [
@@ -193,15 +311,14 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
             Invoke = async () =>
             {
                 ApplySettings();
-                try
-                {
-                    int count = await _service.ProbeAsync();
-                    return string.Format(Tr("Connected — {0} sensor(s)"), count);
-                }
-                catch (Exception ex)
-                {
-                    return string.Format(Tr("Failed: {0}"), ex.Message);
-                }
+                await _service.ProbeAsync();
+
+                // The reason it failed, or what it reads now, and the last problem the poll loop or
+                // this test ran into.
+                string text = Tr(_service.Status);
+                if (_service.LastError is { } error)
+                    text += "\n" + string.Format(Tr("Last error: {0}"), Tr(error));
+                return text;
             }
         }
     ];
@@ -214,13 +331,20 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     {
         try
         {
-            return _host?.Tr(english) ?? english;
+            return _host is null ? english : HostTr(_host, english);
         }
         catch (MissingMethodException)
         {
             return english;
         }
     }
+
+    private string Tr(LibreDiagnostics diagnostics) => string.Format(Tr(diagnostics.Format), diagnostics.Args);
+
+    // Kept out of line: the JIT resolves IPluginHost.Tr when it compiles this method, which throws
+    // on a host without it — inside Tr's try block rather than in its caller.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string HostTr(IPluginHost host, string english) => host.Tr(english);
 
     public void OnSettingsSaved()
     {
