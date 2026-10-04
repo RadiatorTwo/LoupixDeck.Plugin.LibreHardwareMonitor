@@ -7,7 +7,7 @@ namespace LoupixDeck.Plugin.LibreHardwareMonitor.Telemetry;
 /// alert states are evaluated with hysteresis. Runs on its own timer, off the host's render lock;
 /// render calls only read the latest published frame.
 /// </summary>
-internal sealed class TelemetrySampler(LibreHardwareMonitorService service, Func<double> tjMax) : IDisposable
+internal sealed class TelemetrySampler(LibreHardwareMonitorService service, Func<TelemetrySettings> readSettings) : IDisposable
 {
     /// <summary>Samples kept per metric — the width of the design's 72-px chart.</summary>
     public const int HistoryLength = 72;
@@ -57,7 +57,8 @@ internal sealed class TelemetrySampler(LibreHardwareMonitorService service, Func
         }
 
         IReadOnlyList<LibreSensor> sensors = service.Sensors;
-        double tj = tjMax();
+        TelemetrySettings settings = readSettings();
+        double tj = settings.TjMax;
 
         List<(string Key, double Value, MetricInfo Info)> inputs = [];
         foreach (LibreSensor sensor in sensors)
@@ -90,12 +91,12 @@ internal sealed class TelemetrySampler(LibreHardwareMonitorService service, Func
                 ThresholdKind.GpuFanStall => metrics.GetValueOrDefault(PageMetrics.GpuTemp)?.State ?? MetricState.Ok,
                 _ => MetricState.Ok
             };
-            track.State = Thresholds.Evaluate(info.Threshold, smoothed, tj, track.State, companion);
+            track.State = Thresholds.Evaluate(info.Threshold, smoothed, settings, track.State, companion);
 
             double[] history = track.ToArray();
             double max = info.GrowToPeak ? Math.Max(info.Max, Peak(history)) : info.Max;
             metrics[key] = new MetricSnapshot(smoothed, track.State, history, info.Min, max,
-                Thresholds.LimitsFor(info.Threshold, tj)?.Warn, info.Format, info.Unit);
+                Thresholds.LimitsFor(info.Threshold, settings)?.Warn, info.Format, info.Unit);
         }
 
         // A metric that vanished (sensor or hardware gone in LibreHardwareMonitor) keeps a gap in its chart and is dropped

@@ -61,7 +61,7 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
     public override void Initialize(IPluginHost host)
     {
         _host = host;
-        _telemetry = new TelemetrySampler(_service, ReadTjMax);
+        _telemetry = new TelemetrySampler(_service, ReadSettings);
         _commands = [new LibreSensorCommand(_telemetry), new LibrePagesCommand(_telemetry)];
         ApplySettings();
         _service.Start();
@@ -100,10 +100,10 @@ public sealed class LibreHardwareMonitorPlugin : LoupixPlugin, IMenuContributor,
         ];
     }
 
-    private double ReadTjMax()
+    private TelemetrySettings ReadSettings()
     {
         long tjMax = _host?.Settings.Get(CpuTjMaxKey, DefaultTjMax) ?? DefaultTjMax;
-        return Math.Clamp(tjMax, 60, 125);
+        return TelemetrySettings.Default with { TjMax = Math.Clamp(tjMax, 60, 125) };
     }
 
     public override IEnumerable<IPluginCommand> GetCommands() => _commands;
