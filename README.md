@@ -33,7 +33,7 @@ The **Transparent background** setting lets the page wallpaper show through.
   the adapter that carried the most data, DISK sums the transfer rates of all drives.
 
 The menu, the settings and the command texts are available in English, German and Spanish.
-Requires LoupixDeck with Plugin SDK 1.26 or later.
+Requires LoupixDeck with Plugin SDK 1.28 or later.
 
 ## Build & deploy
 
